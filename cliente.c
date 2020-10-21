@@ -19,6 +19,7 @@
 u_int16_t PORT;
 
 int Burst1, Burst2, tasaCreacion1, tasaCreacion2;
+int Prioridad;
 bool corriendo = true;
 int sockfd = 0;
 char num[USERNAME_BUFFER];
@@ -121,15 +122,16 @@ void menu(){
     }
         
     printf("\nEscoge alguna de las opciones: \n");
-    printf("0. Cliente Manual\n");
-    printf("1. Cliente Automatico\n");
-    printf("2. Salir\n");
+    printf("1. Cliente Manual\n");
+    printf("2. Cliente Automatico\n");
+    printf("3. Salir\n");
     printf("Digite el numero de la accion deseada: ");
     opcion = -1;
     scanf("%i", &opcion);
-    if(opcion == 0){
+    if(opcion == 1){
+        clienteManual();
     }
-    else if(opcion == 1){
+    else if(opcion == 2){
         clienteAutomatico();
     }
     else{
@@ -158,6 +160,27 @@ void *crearProceso(){
     }
     bzero(num, USERNAME_BUFFER);
 }
+void *crearProcesoManual(){
+    int burst = Burst1;
+    int priori = Prioridad;
+    int bytesEnviados =0;
+    sprintf(num, "%d", burst);
+    bytesEnviados = send(sockfd, num, MAXBUF, 0);
+    if (bytesEnviados <= 0)
+    {
+        printf("No se pudo enviar la instruccion de descarga al servidor\n");
+        return -1;
+    }
+    bzero(num, USERNAME_BUFFER);
+    *num = priori + '0';
+    bytesEnviados = send(sockfd, num, MAXBUF, 0);
+    if (bytesEnviados <= 0)
+    {
+        printf("No se pudo enviar el nombre del archivo al servidor\n");
+        return -1;
+    }
+    bzero(num, USERNAME_BUFFER);
+}
 
 void *generarHilosProcesos(void *arg){
     time_t t;
@@ -168,6 +191,13 @@ void *generarHilosProcesos(void *arg){
             pthread_join(hilo,NULL);
         sleep((rand() % (tasaCreacion2+1-tasaCreacion1)) + tasaCreacion1);
     }
+}
+
+void *generarHilosProcesosManual(void *arg){
+    pthread_t hilo;
+    if( 0 == pthread_create(&hilo, NULL, crearProcesoManual, NULL))
+            pthread_join(hilo,NULL);
+    sleep(2);
 }
 
 void clienteAutomatico(){
@@ -188,4 +218,36 @@ void clienteAutomatico(){
         corriendo = false;
     }
     pthread_join(hilo,NULL);
+}
+void clienteManual(){
+    int bytesEnviados=0;
+    char mystring [1000];
+    FILE* pFile;
+    char c;
+    char d;
+    pFile = fopen ("/media/sf_Proyecto1/Manual.txt" , "r");
+    if (pFile == NULL)
+        exit(EXIT_FAILURE);
+    while(fgets( mystring, 1000, pFile) != NULL){
+      pthread_t hilo;
+      int jj = -1;
+      while(++jj < strlen(mystring)) {
+        if ((c = mystring[jj]) != ' ') break;
+      }
+      int segundo = 0;
+      while(++segundo < strlen(mystring)) {
+        if ((d = mystring[segundo]) != ' ') break;
+      }
+      Burst1= (int)(c);
+      Burst1 = Burst1-48;
+      Prioridad=(int)(d);
+      Prioridad= Prioridad-48;
+      if( 0 != pthread_create(&hilo, NULL, generarHilosProcesosManual, NULL)){
+            return -1;
+        }
+      sleep((rand() % (8-3+1))+3);
+      pthread_join(hilo,NULL);
+    }
+    fclose (pFile);
+    bytesEnviados = send(sockfd, "Detener", MAXBUF, 0);
 }
