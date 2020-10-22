@@ -25,7 +25,6 @@ char num[USERNAME_BUFFER];
 
 int main(int argc, char const *argv[])
 {
-    printf("",sizeof(15));
     if (argc < 3)
     {
         printf("Se debe especificar el puerto y la direccion IP:...\n");
@@ -137,7 +136,7 @@ void menu(){
     }
 }
 
-void *crearProceso(){
+void crearProceso(){
     int burst = (rand() % (Burst2+1-Burst1)) + Burst1;
     int prioridad = (rand() % 5) + 1;
     int bytesEnviados = 0;
@@ -146,7 +145,7 @@ void *crearProceso(){
     if (bytesEnviados <= 0)
     {
         printf("No se pudo enviar la instruccion de descarga al servidor\n");
-        return -1;
+        return;
     }
     bzero(num, USERNAME_BUFFER);
     *num = prioridad + '0';
@@ -154,7 +153,7 @@ void *crearProceso(){
     if (bytesEnviados <= 0)
     {
         printf("No se pudo enviar el nombre del archivo al servidor\n");
-        return -1;
+        return;
     }
     bzero(num, USERNAME_BUFFER);
 }
@@ -177,7 +176,7 @@ void clienteAutomatico(){
     printf("Ingrese el rango para el valor de la tasa de creacion: ");
     scanf("%d %d", &tasaCreacion1, &tasaCreacion2);
     if( 0 != pthread_create(&hilo, NULL, generarHilosProcesos, NULL)){
-        return -1;
+        return;
     }
     int opcion;
     printf("\nIngrese 0 para detener la simulacion: ");
