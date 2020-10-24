@@ -5,35 +5,24 @@
 
 int main(void)
 {
-    char mystring [1000];
-    FILE* pFile;
-    char c;
-    char d;
-    int a;
-    int b;
-    pFile = fopen ("/media/sf_Proyecto1/Manual.txt" , "r");
-    if (pFile == NULL)
-        exit(EXIT_FAILURE);
-    while(fgets( mystring, 1000, pFile) != NULL){
-      int jj = -1;
-      while(++jj < strlen(mystring)) {
-        if ((c = mystring[jj]) != ' ') break;
-      }
-      int segundo = 0;
-      while(++segundo < strlen(mystring)) {
-        if ((d = mystring[segundo]) != ' ') break;
-      }
-      printf("%c", c);
-      printf("\t");
-      printf("%c",d);
-      a=(int)(c);
-      b=(int)(d);
-      a=a-48;
-      b=b-48;
-      printf("\t");
-      printf("%d",a+b);
-      printf("\n");
-    }
+    
 
-    fclose (pFile);
+  FILE* filePointer;
+  int bufferLength = 255;
+  char buffer[bufferLength];
+
+  filePointer = fopen("./Manual.txt", "r");
+
+  while(fgets(buffer, bufferLength, filePointer)) {
+    //printf("%s\n", buffer);
+    char * token = strtok(buffer, " ");
+   // loop through the string to extract all other tokens
+   while( token != NULL ) {
+      printf( " %s\n", token ); //printing each token
+      token = strtok(NULL, " ");
+   }
+
+  }
+
+  fclose(filePointer);
 }

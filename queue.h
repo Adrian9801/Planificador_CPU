@@ -13,7 +13,6 @@ typedef struct NodeQueue
 typedef struct Queue{
     NodeQueue* first;
     NodeQueue* last;
-
 } Queue;
 
 
@@ -24,6 +23,8 @@ void destroyQueue(Queue* queueN);
 void push(Queue* queueN, Process* process);
 Process* consult(Queue* queueN);
 void  pop(Queue* queueN);
+void searchHigher(Queue* queueN,char *mode);
+void printQueue(Queue* queueN);
 
 #endif
 
