@@ -23,7 +23,7 @@ int Prioridad;
 bool corriendo = true;
 int sockfd = 0;
 char num[USERNAME_BUFFER];
-
+int pId = 0;
 int main(int argc, char const *argv[])
 {
     printf("",sizeof(15));
@@ -158,6 +158,8 @@ void *crearProceso(){
         printf("No se pudo enviar el nombre del archivo al servidor\n");
         return -1;
     }
+    printf("Se ha recibido correctamente el proceso con el id: %d\n",pId);
+    pId++;
     bzero(num, USERNAME_BUFFER);
 }
 void *crearProcesoManual(){
@@ -179,6 +181,8 @@ void *crearProcesoManual(){
         printf("No se pudo enviar el nombre del archivo al servidor\n");
         return -1;
     }
+    printf("Se ha recibido correctamente el proceso con el id: %d\n",pId);
+    pId++;
     bzero(num, USERNAME_BUFFER);
 }
 
@@ -210,7 +214,7 @@ void clienteAutomatico(){
         return -1;
     }
     int opcion;
-    printf("\nIngrese 0 para detener la simulacion: ");
+    printf("\nIngrese 0 para detener la simulacion: \n");
     scanf("%i", &opcion);
     if(opcion == 0){
         int bytesEnviados = 0;
