@@ -225,7 +225,7 @@ void clienteManual(){
     FILE* pFile;
     char c;
     char d;
-    pFile = fopen ("/media/sf_Proyecto1/Manual.txt" , "r");
+    pFile = fopen ("./Manual.txt" , "r");
     if (pFile == NULL)
         exit(EXIT_FAILURE);
     while(fgets( mystring, 1000, pFile) != NULL){

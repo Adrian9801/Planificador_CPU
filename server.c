@@ -13,21 +13,25 @@
 #include <string.h>
 #include <dirent.h>
 #include <time.h>
-
+#include "queue.c"
+#include "process.c"
 #include "server.h"
+#
 
 #define TAMANO_BUFFER 1024
 #define COLA_SERVIDOR 10
 
 u_int16_t PUERTO_SERVIDOR;
-
-
+time_t tiempo;
+int pId;
 
 // variables para la generacion del archivo log para la sesion
 time_t nombre;
 
 // mutex para los hilos
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+Queue* newQueue;
 
 int main(int argc, char const *argv[])
 {
@@ -42,6 +46,7 @@ int main(int argc, char const *argv[])
         printf("El puerto debe ser un número entero\n");
         exit(1);
     }
+    newQueue = createQueue();
 
     
 
@@ -92,7 +97,10 @@ int main(int argc, char const *argv[])
         *clientePtr = clienteFd;
 
         pthread_t clienteHilo;
-        pthread_create(&clienteHilo, NULL, encargarseCliente, clientePtr);
+        pId = 0;
+        tiempo = clock();
+        pthread_create(&clienteHilo, NULL, jobScheduler, clientePtr);
+        
         pthread_join(clienteHilo,NULL);
 
         close(socketServidor);
@@ -100,7 +108,7 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
-void *encargarseCliente(void *ptrCliente)
+void *jobScheduler(void *ptrCliente)
 {
     // registro de bytes enviado en cada paquete
     int enviadosPaquete = 0;
@@ -119,7 +127,7 @@ void *encargarseCliente(void *ptrCliente)
     if (bRead < 0)
     {
         printf("No se pudo obtener el algoritmo deseado\n");
-        encargarseCliente(ptrCliente);
+        jobScheduler(ptrCliente);
         return;
     }
     printf("El algoritmo a utilizar es: %s\n", algoritmo);
@@ -128,7 +136,7 @@ void *encargarseCliente(void *ptrCliente)
         if (bRead < 0)
         {
             printf("No se pudo obtener el quantum deseado\n");
-            encargarseCliente(ptrCliente);
+            jobScheduler(ptrCliente);
             return;
         }
         printf("El quantum es de: %s\n", quantum);
@@ -171,7 +179,12 @@ void *encargarseCliente(void *ptrCliente)
                 printf("Fin");
                 break;
             }
-            printf("El burst es de: %s y  la prioridad es de: %s\n", burst, prioridad);
+            time_t ta = clock();
+            float tl = difftime(ta, tiempo)/14;
+            Process* process = createProcess(pId,burst,prioridad,0,0,tl,0,"en ready");
+            push(newQueue,process);
+            printf("El burst es de: %s, la prioridad es de: %s y el tiempo: %f\n", burst, prioridad,tl);
+            pId++;
         }
     }
 

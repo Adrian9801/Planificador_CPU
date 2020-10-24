@@ -1,6 +1,6 @@
 #ifndef SERVER
 #define SERVER
 
-void *encargarseCliente(void *);
+void *jobScheduler(void *);
 
 #endif
