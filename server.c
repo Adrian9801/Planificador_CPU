@@ -16,22 +16,28 @@
 #include "queue.c"
 #include "process.c"
 #include "server.h"
-#
+#include <stdbool.h>
 
 #define TAMANO_BUFFER 1024
 #define COLA_SERVIDOR 10
 
 u_int16_t PUERTO_SERVIDOR;
 time_t tiempo;
+clock_t ta;
 int pId;
-
-// variables para la generacion del archivo log para la sesion
-time_t nombre;
-
+bool run = true;
+char algoritmo[TAMANO_BUFFER];
+float quantum;
+int cantProcesos;
+float promedioTAT;
+float promedioWT;
+int tiempoOcioso;
 // mutex para los hilos
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 Queue* newQueue;
+
+Queue* colaFinal;
 
 int main(int argc, char const *argv[])
 {
@@ -47,8 +53,11 @@ int main(int argc, char const *argv[])
         exit(1);
     }
     newQueue = createQueue();
-
-    
+    colaFinal = createQueue();
+    cantProcesos = 0;
+    promedioTAT = 0;
+    promedioWT = 0;
+    tiempoOcioso = 0;
 
     int socketServidor;
     struct sockaddr_in servaddr;
@@ -97,12 +106,13 @@ int main(int argc, char const *argv[])
         *clientePtr = clienteFd;
 
         pthread_t clienteHilo;
+        pthread_t CPUHilo;
         pId = 0;
-        tiempo = clock();
+        tiempo = time(NULL);
         pthread_create(&clienteHilo, NULL, jobScheduler, clientePtr);
-        
+        pthread_create(&CPUHilo, NULL, CPUScheduler, NULL);
         pthread_join(clienteHilo,NULL);
-
+        pthread_join(CPUHilo,NULL);
         close(socketServidor);
     }
     return 0;
@@ -118,8 +128,7 @@ void *jobScheduler(void *ptrCliente)
     free(ptrCliente);
 
     char prioridad[TAMANO_BUFFER];
-    char algoritmo[TAMANO_BUFFER];
-    char quantum[TAMANO_BUFFER];
+    char charQuantum[TAMANO_BUFFER];
     char burst[TAMANO_BUFFER];
     int bRead = 0;
 
@@ -132,13 +141,14 @@ void *jobScheduler(void *ptrCliente)
     }
     printf("El algoritmo a utilizar es: %s\n", algoritmo);
     if(strcmp(algoritmo,"Round Robin") == 0){
-        bRead = read(socketCliente, quantum, TAMANO_BUFFER);
+        bRead = read(socketCliente, charQuantum, TAMANO_BUFFER);
         if (bRead < 0)
         {
             printf("No se pudo obtener el quantum deseado\n");
             jobScheduler(ptrCliente);
             return;
         }
+        quantum = atof(charQuantum);
         printf("El quantum es de: %s\n", quantum);
     }
     while (1)
@@ -179,9 +189,9 @@ void *jobScheduler(void *ptrCliente)
                 printf("Fin");
                 break;
             }
-            time_t ta = clock();
-            float tl = difftime(ta, tiempo)/14;
-            Process* process = createProcess(pId,burst,prioridad,0,0,tl,0,"en ready");
+            ta = time(NULL);
+            float tl = ta-tiempo;
+            Process* process = createProcess(pId,atoi(burst),atoi(prioridad),0,0,tl,0,"en ready");
             push(newQueue,process);
             printf("El burst es de: %s, la prioridad es de: %s y el tiempo: %f\n", burst, prioridad,tl);
             pId++;
@@ -189,6 +199,63 @@ void *jobScheduler(void *ptrCliente)
     }
 
     close(socketCliente);
-
+    run = false;
     return NULL;
+}
+
+void *CPUScheduler()
+{
+    searchHighest(newQueue,algoritmo);
+    Process* prove = consult(newQueue);
+    float tiempoBurst = 0;
+    printf("\n");
+    while(run || prove != NULL){
+        if(prove != NULL){
+            pop(newQueue);
+            if(strcmp(algoritmo,"Round Robin") == 0){
+                float restante = prove->pcb->burst - prove->pcb->departureTime;
+                if(quantum < restante){
+                    sleep(quantum);
+                    prove->pcb->departureTime = prove->pcb->departureTime + quantum;
+                    push(newQueue,prove);
+                }
+                else
+                {
+                    sleep(restante);
+                    ta = time(NULL);
+                    prove->pcb->departureTime = ta-tiempo;
+                    prove->pcb->tat = prove->pcb->departureTime - prove->pcb->arrivalTime;
+                    prove->pcb->wt = prove->pcb->tat - prove->pcb->burst;
+                    cantProcesos++;
+                    promedioTAT += prove->pcb->tat;
+                    promedioWT += prove->pcb->wt;
+                    tiempoOcioso += prove->pcb->burst;
+                    prove->state = "Finished";
+                    printf("proceso: %d burst: %d prioridad: %d WT: %f TAT: %f\n Tiempo llegada: %f Tiempo salida: %f estado: %s\n",prove->pid,prove->pcb->burst,prove->pcb->priority,prove->pcb->wt,prove->pcb->tat,prove->pcb->arrivalTime,prove->pcb->departureTime,prove->state);
+                    push(colaFinal,prove);
+                }
+                
+            }
+            else{
+                sleep(prove->pcb->burst);
+                ta = time(NULL);
+                prove->pcb->departureTime = ta-tiempo;
+                prove->pcb->tat = prove->pcb->departureTime - prove->pcb->arrivalTime;
+                prove->pcb->wt = prove->pcb->tat - prove->pcb->burst;
+                prove->state = "Finished";
+                cantProcesos++;
+                promedioTAT += prove->pcb->tat;
+                promedioWT += prove->pcb->wt;
+                tiempoOcioso += prove->pcb->burst;
+                push(colaFinal,prove);
+                printf("proceso: %d burst: %d prioridad: %d WT: %f TAT: %f\n Tiempo llegada: %f Tiempo salida: %f estado: %s\n",prove->pid,prove->pcb->burst,prove->pcb->priority,prove->pcb->wt,prove->pcb->tat,prove->pcb->arrivalTime,prove->pcb->departureTime,prove->state);
+            }
+        }
+        searchHighest(newQueue,algoritmo);
+        prove = consult(newQueue);
+    }
+    ta = time(NULL);
+    tiempoOcioso= (ta-tiempo)-tiempoOcioso;
+    promedioTAT = promedioTAT/cantProcesos;
+    promedioWT = promedioWT/cantProcesos;
 }

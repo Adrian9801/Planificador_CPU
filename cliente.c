@@ -214,7 +214,7 @@ void clienteAutomatico(){
         return -1;
     }
     int opcion;
-    printf("\nIngrese 0 para detener la simulacion: \n");
+    printf("\nIngrese 0 para detener la simulacion:\n");
     scanf("%i", &opcion);
     if(opcion == 0){
         int bytesEnviados = 0;

@@ -124,10 +124,7 @@ void searchHighest(Queue* queueN,char *mode){
                     queueN->first = auxHighest;
                 }
         }   
-    }else
-    {
-        printf("No hay elementos en la cola!");
-    } 
+    }
 }
 
 
