@@ -174,7 +174,7 @@ void *crearProcesoManual(){
         return -1;
     }
     bzero(num, USERNAME_BUFFER);
-    *num = priori + '0';
+    sprintf(num, "%d", priori);
     bytesEnviados = send(sockfd, num, MAXBUF, 0);
     if (bytesEnviados <= 0)
     {
@@ -225,32 +225,38 @@ void clienteAutomatico(){
 }
 void clienteManual(){
     int bytesEnviados=0;
-    char mystring [1000];
+    int bufferLength = 255;
+    char buffer[bufferLength];
+    int contador=0;
+    int a;
+    int b;
     FILE* pFile;
-    char c;
-    char d;
-    pFile = fopen ("./Manual.txt" , "r");
+    pFile = fopen ("/media/sf_Proyecto1/Manual.txt" , "r");
     if (pFile == NULL)
         exit(EXIT_FAILURE);
-    while(fgets( mystring, 1000, pFile) != NULL){
-      pthread_t hilo;
-      int jj = -1;
-      while(++jj < strlen(mystring)) {
-        if ((c = mystring[jj]) != ' ') break;
-      }
-      int segundo = 0;
-      while(++segundo < strlen(mystring)) {
-        if ((d = mystring[segundo]) != ' ') break;
-      }
-      Burst1= (int)(c);
-      Burst1 = Burst1-48;
-      Prioridad=(int)(d);
-      Prioridad= Prioridad-48;
-      if( 0 != pthread_create(&hilo, NULL, generarHilosProcesosManual, NULL)){
-            return -1;
+    while(fgets(buffer, bufferLength, pFile)) {
+    char * token = strtok(buffer, " ");
+    pthread_t hilo;
+        while( token != NULL ) {
+            if(contador==0){
+            a=atoi(token);
+            token = strtok(NULL, " ");
+            contador++;
+            }
+            if(contador==1){
+                b=atoi(token);
+                token = strtok(NULL, " ");
+                contador=0;
+            }
+            
         }
-      sleep((rand() % (8-3+1))+3);
-      pthread_join(hilo,NULL);
+        Burst1=a;
+        Prioridad=b;
+        if( 0 != pthread_create(&hilo, NULL, generarHilosProcesosManual, NULL)){
+            return -1;
+        }   
+        sleep((rand() % (8-3+1))+3);
+        pthread_join(hilo,NULL);
     }
     fclose (pFile);
     bytesEnviados = send(sockfd, "Detener", MAXBUF, 0);
