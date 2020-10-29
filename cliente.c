@@ -76,66 +76,59 @@ int main(int argc, char const *argv[])
 }
 
 void menu(){
-    printf("\nEscoge el algoritmo: \n");
-    printf("0. FIFO\n");
-    printf("1. SJF\n");
-    printf("2. HPF\n");
-    printf("3. Round Robin\n");
-    printf("4. Salir\n");
-    printf("Digite el numero de la accion deseada: ");
-    int opcion = -1;
-    scanf("%i", &opcion);
     int bytesEnviados = 0;
-    if(opcion == 0){
-        bytesEnviados = send(sockfd, "FIFO", MAXBUF, 0);
-    }
-    else if(opcion == 1){
-        bytesEnviados = send(sockfd, "SJF", MAXBUF, 0);
-    }
-    else if(opcion == 2){
-        bytesEnviados = send(sockfd, "HPF", MAXBUF, 0);
-    }
-    else if(opcion == 3){
-        bytesEnviados = send(sockfd, "Round Robin", MAXBUF, 0);
-        printf("Digite el quamtum deseado: ");
+    int opcion = -1;
+    while(true){
+        printf("\nEscoge el algoritmo: \n");
+        printf("0. FIFO\n");
+        printf("1. SJF\n");
+        printf("2. HPF\n");
+        printf("3. Round Robin\n");
+        printf("Digite el numero de la accion deseada: ");
         scanf("%i", &opcion);
-        if(bytesEnviados > 0){
-            char quantum[USERNAME_BUFFER];
-            sprintf(quantum, "%d", opcion);
-            bytesEnviados = send(sockfd, quantum, MAXBUF, 0);
+        if(opcion == 0){
+            bytesEnviados = send(sockfd, "FIFO", MAXBUF, 0);
+            break;
+        }
+        else if(opcion == 1){
+            bytesEnviados = send(sockfd, "SJF", MAXBUF, 0);
+            break;
+        }
+        else if(opcion == 2){
+            bytesEnviados = send(sockfd, "HPF", MAXBUF, 0);
+            break;
+        }
+        else if(opcion == 3){
+            bytesEnviados = send(sockfd, "Round Robin", MAXBUF, 0);
+            printf("Digite el quamtum deseado: ");
+            scanf("%i", &opcion);
+            if(bytesEnviados > 0){
+                char quantum[USERNAME_BUFFER];
+                sprintf(quantum, "%d", opcion);
+                bytesEnviados = send(sockfd, quantum, MAXBUF, 0);
+            }
+            break;
+        }
+        if (bytesEnviados <= 0)
+        {
+            printf("No se pudo enviar la informcaion del algoritmo.\n");
         }
     }
-    else if(opcion == 4){
-        exit(1);
-    }
-    else{
-        printf("La opcion no existe.\n");
-        menu();
-        return;
-    }
-
-    if (bytesEnviados <= 0)
-    {
-        printf("No se pudo enviar la informcaion del algoritmo.\n");
-        menu();
-        return;
-    }
-        
-    printf("\nEscoge alguna de las opciones: \n");
-    printf("1. Cliente Manual\n");
-    printf("2. Cliente Automatico\n");
-    printf("3. Salir\n");
-    printf("Digite el numero de la accion deseada: ");
-    opcion = -1;
-    scanf("%i", &opcion);
-    if(opcion == 1){
-        clienteManual();
-    }
-    else if(opcion == 2){
-        clienteAutomatico();
-    }
-    else{
-        exit(1);
+    while(true){
+        printf("\nEscoge alguna de las opciones: \n");
+        printf("1. Cliente Manual\n");
+        printf("2. Cliente Automatico\n");
+        printf("Digite el numero de la accion deseada: ");
+        opcion = -1;
+        scanf("%i", &opcion);
+        if(opcion == 1){
+            clienteManual();
+            break;
+        }
+        else if(opcion == 2){
+            clienteAutomatico();
+            break;
+        }
     }
 }
 
@@ -174,7 +167,7 @@ void *crearProcesoManual(){
         return -1;
     }
     bzero(num, USERNAME_BUFFER);
-    *num = priori + '0';
+    sprintf(num, "%d", priori);
     bytesEnviados = send(sockfd, num, MAXBUF, 0);
     if (bytesEnviados <= 0)
     {
@@ -214,44 +207,80 @@ void clienteAutomatico(){
         return -1;
     }
     int opcion;
-    printf("\nIngrese 0 para detener la simulacion:\n");
-    scanf("%i", &opcion);
-    if(opcion == 0){
-        int bytesEnviados = 0;
-        bytesEnviados = send(sockfd, "Detener", MAXBUF, 0);
-        corriendo = false;
+    while(true){
+        printf("\nIngrese 0 para detener la simulacion:\n");
+        printf("Ingrese 1 para mostrar la cola:\n");
+        scanf("%i", &opcion);
+        if(opcion == 0){
+            int bytesEnviados = 0;
+            bytesEnviados = send(sockfd, "Detener", MAXBUF, 0);
+            corriendo = false;
+            break;
+        }
+        else if(opcion == 1){
+            int bytesEnviados = 0;
+            bytesEnviados = send(sockfd, "Cola", MAXBUF, 0);
+        }
     }
     pthread_join(hilo,NULL);
 }
+
+void *opcionesSimulador(){
+    int opcion = 0;
+    while(true){
+        printf("\nIngrese 0 para detener la simulacion:\n");
+        printf("Ingrese 1 para mostrar la cola:\n");
+        scanf("%i", &opcion);
+        if(opcion == 0){
+            int bytesEnviados = 0;
+            bytesEnviados = send(sockfd, "Detener", MAXBUF, 0);
+            corriendo = false;
+            break;
+        }
+        else if(opcion == 1){
+            int bytesEnviados = 0;
+            bytesEnviados = send(sockfd, "Cola", MAXBUF, 0);
+        }
+    }
+}
 void clienteManual(){
     int bytesEnviados=0;
-    char mystring [1000];
+    int bufferLength = 255;
+    char buffer[bufferLength];
+    int contador=0;
+    int a;
+    int b;
+    pthread_t hiloSimulador;
+    if( 0 != pthread_create(&hiloSimulador, NULL, opcionesSimulador, NULL)){
+        return -1;
+    }   
     FILE* pFile;
-    char c;
-    char d;
     pFile = fopen ("./Manual.txt" , "r");
     if (pFile == NULL)
         exit(EXIT_FAILURE);
-    while(fgets( mystring, 1000, pFile) != NULL){
-      pthread_t hilo;
-      int jj = -1;
-      while(++jj < strlen(mystring)) {
-        if ((c = mystring[jj]) != ' ') break;
-      }
-      int segundo = 0;
-      while(++segundo < strlen(mystring)) {
-        if ((d = mystring[segundo]) != ' ') break;
-      }
-      Burst1= (int)(c);
-      Burst1 = Burst1-48;
-      Prioridad=(int)(d);
-      Prioridad= Prioridad-48;
-      if( 0 != pthread_create(&hilo, NULL, generarHilosProcesosManual, NULL)){
-            return -1;
+    while(fgets(buffer, bufferLength, pFile)) {
+    char * token = strtok(buffer, " ");
+    pthread_t hilo;
+        while( token != NULL ) {
+            if(contador==0){
+            a=atoi(token);
+            token = strtok(NULL, " ");
+            contador++;
+            }
+            if(contador==1){
+                b=atoi(token);
+                token = strtok(NULL, " ");
+                contador=0;
+            }
+            
         }
-      sleep((rand() % (8-3+1))+3);
-      pthread_join(hilo,NULL);
+        Burst1=a;
+        Prioridad=b;
+        if( 0 != pthread_create(&hilo, NULL, generarHilosProcesosManual, NULL)){
+            return -1;
+        }   
+        sleep((rand() % (8-3+1))+3);
     }
     fclose (pFile);
-    bytesEnviados = send(sockfd, "Detener", MAXBUF, 0);
+    pthread_join(hiloSimulador,NULL);
 }

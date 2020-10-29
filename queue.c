@@ -39,6 +39,20 @@ Process* consult(Queue* queueN){
     }
 }
 
+Process* consultElement(Queue* queueN, int pos){
+    if(queueN->first){
+        NodeQueue* auxNode =  queueN->first;
+        for (int i = 0; (i < pos && auxNode != NULL); i++)
+        {
+            auxNode = auxNode->next;
+        }
+        if(auxNode != NULL){
+            return auxNode->process;
+        }
+    }
+    return NULL;
+}
+
 void pop(Queue* queueN){
     if(queueN->first){
         NodeQueue* deleted =  queueN->first;
@@ -68,6 +82,17 @@ void printQueue(Queue* queueN){
     }
 }
 
+int largoCola(Queue* queueN){
+    int largo = 0;
+    if(queueN->first){
+        NodeQueue* auxNode =  queueN->first;
+        while (auxNode->next != NULL){
+            auxNode = auxNode->next;
+            largo++;
+        }
+    }
+    return largo;
+}
 
 void searchHighest(Queue* queueN,char *mode){
     if(queueN->first){

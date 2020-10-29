@@ -1,7 +1,3 @@
-/**
- * Para la lectura de un archivo se toma como referencia:
- * https://www.geeksforgeeks.org/c-program-list-files-sub-directories-directory/
- */
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +31,7 @@ int tiempoOcioso;
 // mutex para los hilos
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-Queue* newQueue;
+Queue* colaReady;
 
 Queue* colaFinal;
 
@@ -52,7 +48,7 @@ int main(int argc, char const *argv[])
         printf("El puerto debe ser un número entero\n");
         exit(1);
     }
-    newQueue = createQueue();
+    colaReady = createQueue();
     colaFinal = createQueue();
     cantProcesos = 0;
     promedioTAT = 0;
@@ -148,10 +144,10 @@ void *jobScheduler(void *ptrCliente)
             jobScheduler(ptrCliente);
             return;
         }
-        quantum = atof(charQuantum);
-        printf("El quantum es de: %s\n", quantum);
+        quantum = atoi(charQuantum);
+        printf("El quantum es de: %s\n", charQuantum);
     }
-    while (1)
+    while (run)
     {
         bzero(burst, TAMANO_BUFFER);
         // leer la solicitud del cliente
@@ -166,35 +162,49 @@ void *jobScheduler(void *ptrCliente)
         else if (bRead == 0)
         {
             printf("Se obtuvo un mensaje nulo del servidor\n");
+            break;
         }
         else{
-            sleep(1);
             /**
              * Se recibe el nombre del usuario para ingresarlo en la lista
              * En caso de que ya se encuentre pasar al envio de donde quedo
              * la descarga pasada (falta por implementar)
             */
-            bzero(prioridad, TAMANO_BUFFER);
             if(strcmp(burst,"Detener") == 0){
                 printf("Fin");
+                run = false;
                 break;
             }
-            // recibir el nombre del usuario
-            if ((bRead = read(socketCliente, prioridad, TAMANO_BUFFER)) < 0)
-            {
-                printf("No se pudo obtener la prioridad\n");
+            else if(strcmp(burst,"Cola") == 0){
+                pthread_t verColaHilo;
+                pthread_create(&verColaHilo, NULL, verCola, NULL);
                 continue;
             }
-            else if(strcmp(prioridad,"Detener") == 0){
-                printf("Fin");
+            while(true){
+                bzero(prioridad, TAMANO_BUFFER);
+                if ((bRead = read(socketCliente, prioridad, TAMANO_BUFFER)) < 0)
+                {
+                    printf("No se pudo obtener la prioridad\n");
+                    run = false;
+                    break;
+                }
+                else if(strcmp(prioridad,"Detener") == 0){
+                    printf("Fin");
+                    run = false;
+                    break;
+                }
+                else if(strcmp(prioridad,"Cola") == 0){
+                    pthread_t verColaHilo;
+                    pthread_create(&verColaHilo, NULL, verCola, NULL);
+                    continue;
+                }
+                ta = time(NULL);
+                float tl = ta-tiempo;
+                Process* process = createProcess(pId,atoi(burst),atoi(prioridad),0,0,tl,0,"en ready");
+                push(colaReady,process);
+                pId++;
                 break;
             }
-            ta = time(NULL);
-            float tl = ta-tiempo;
-            Process* process = createProcess(pId,atoi(burst),atoi(prioridad),0,0,tl,0,"en ready");
-            push(newQueue,process);
-            printf("El burst es de: %s, la prioridad es de: %s y el tiempo: %f\n", burst, prioridad,tl);
-            pId++;
         }
     }
 
@@ -203,21 +213,35 @@ void *jobScheduler(void *ptrCliente)
     return NULL;
 }
 
+void *verCola(){
+    Process* prove = consultElement(colaReady,0);
+    for (int i = 1 ;prove != NULL; i++)
+    {
+        printf("Proceso: %d Burst: %d Prioridad: %d\n",prove->pid,prove->pcb->burst,prove->pcb->priority);
+        prove = consultElement(colaReady,i);
+    }
+}
+
 void *CPUScheduler()
 {
-    searchHighest(newQueue,algoritmo);
-    Process* prove = consult(newQueue);
+    searchHighest(colaReady,algoritmo);
+    Process* prove = consult(colaReady);
     float tiempoBurst = 0;
     printf("\n");
-    while(run || prove != NULL){
+    while(run){
         if(prove != NULL){
-            pop(newQueue);
+            pop(colaReady);
             if(strcmp(algoritmo,"Round Robin") == 0){
-                float restante = prove->pcb->burst - prove->pcb->departureTime;
+                int restante = prove->pcb->burst - prove->pcb->departureTime;
                 if(quantum < restante){
                     sleep(quantum);
                     prove->pcb->departureTime = prove->pcb->departureTime + quantum;
-                    push(newQueue,prove);
+                    push(colaReady,prove);
+                    searchHighest(colaReady,algoritmo);
+                    prove = consult(colaReady);
+                    restante = prove->pcb->burst - prove->pcb->departureTime;
+                    printf("Context switch\n");
+                    printf("Proceso: %d Burst: %d Prioridad: %d entra en ejecucion\n",prove->pid,restante,prove->pcb->priority);
                 }
                 else
                 {
@@ -230,9 +254,11 @@ void *CPUScheduler()
                     promedioTAT += prove->pcb->tat;
                     promedioWT += prove->pcb->wt;
                     tiempoOcioso += prove->pcb->burst;
-                    prove->state = "Finished";
-                    printf("proceso: %d burst: %d prioridad: %d WT: %f TAT: %f\n Tiempo llegada: %f Tiempo salida: %f estado: %s\n",prove->pid,prove->pcb->burst,prove->pcb->priority,prove->pcb->wt,prove->pcb->tat,prove->pcb->arrivalTime,prove->pcb->departureTime,prove->state);
+                    prove->state = "Terminado";
+                    printf("\nproceso: %d burst: %d prioridad: %d WT: %f TAT: %f\n Tiempo llegada: %f Tiempo salida: %f estado: %s\n",prove->pid,prove->pcb->burst,prove->pcb->priority,prove->pcb->wt,prove->pcb->tat,prove->pcb->arrivalTime,prove->pcb->departureTime,prove->state);
                     push(colaFinal,prove);
+                    searchHighest(colaReady,algoritmo);
+                    prove = consult(colaReady);
                 }
                 
             }
@@ -242,20 +268,34 @@ void *CPUScheduler()
                 prove->pcb->departureTime = ta-tiempo;
                 prove->pcb->tat = prove->pcb->departureTime - prove->pcb->arrivalTime;
                 prove->pcb->wt = prove->pcb->tat - prove->pcb->burst;
-                prove->state = "Finished";
+                prove->state = "Terminado";
                 cantProcesos++;
                 promedioTAT += prove->pcb->tat;
                 promedioWT += prove->pcb->wt;
                 tiempoOcioso += prove->pcb->burst;
                 push(colaFinal,prove);
-                printf("proceso: %d burst: %d prioridad: %d WT: %f TAT: %f\n Tiempo llegada: %f Tiempo salida: %f estado: %s\n",prove->pid,prove->pcb->burst,prove->pcb->priority,prove->pcb->wt,prove->pcb->tat,prove->pcb->arrivalTime,prove->pcb->departureTime,prove->state);
+                printf("\nproceso: %d burst: %d prioridad: %d WT: %f TAT: %f\n Tiempo llegada: %f Tiempo salida: %f estado: %s\n",prove->pid,prove->pcb->burst,prove->pcb->priority,prove->pcb->wt,prove->pcb->tat,prove->pcb->arrivalTime,prove->pcb->departureTime,prove->state);
+                searchHighest(colaReady,algoritmo);
+                prove = consult(colaReady);
             }
         }
-        searchHighest(newQueue,algoritmo);
-        prove = consult(newQueue);
+        else{
+            searchHighest(colaReady,algoritmo);
+            prove = consult(colaReady);
+        }
     }
     ta = time(NULL);
     tiempoOcioso= (ta-tiempo)-tiempoOcioso;
     promedioTAT = promedioTAT/cantProcesos;
     promedioWT = promedioWT/cantProcesos;
+    printf("\nCantidad de procesos terminados: %d\n",cantProcesos);
+    printf("Tiempo de CPU ocioso: %d\n",tiempoOcioso);
+    prove = consult(colaFinal);
+    while(prove != NULL){
+        pop(colaFinal);
+        printf("Proceso: %d TAT: %f WT: %f\n",prove->pid,prove->pcb->tat,prove->pcb->wt);
+        prove = consult(colaFinal);
+    }
+    printf("Promedio de TAT: %f\n",promedioTAT);
+    printf("Promedio de WT: %f\n",promedioWT);
 }

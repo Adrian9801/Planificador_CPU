@@ -22,9 +22,11 @@ Queue* createQueue();
 void destroyQueue(Queue* queueN);
 void push(Queue* queueN, Process* process);
 Process* consult(Queue* queueN);
+Process* consultElement(Queue* queueN, int pos);
 void  pop(Queue* queueN);
 void searchHigher(Queue* queueN,char *mode);
 void printQueue(Queue* queueN);
+int largoCola(Queue* queueN);
 
 #endif
 

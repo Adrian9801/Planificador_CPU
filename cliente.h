@@ -5,5 +5,6 @@ void menu(void);
 void clienteAutomatico(void);
 void *generarHilosProcesos(void *arg);
 void *crearProceso(void);
+void *opcionesSimulador(void);
 
 #endif
